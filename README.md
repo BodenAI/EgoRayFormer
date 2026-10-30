@@ -62,25 +62,35 @@ optional.
 
 ## Pretrained models
 
-The checkpoints of Table 1 will be released soon.
+The models of Table 1 (seed 42; the Results table reports the mean over three seeds) will be released soon. The files
+contain the EMA weights used for evaluation.
 
-| Model | Training data | Test set | Checkpoint |
-|---|---|---|---|
-| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo2 | UnrealEgo2 | Coming soon |
-| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo-RW | UnrealEgo-RW | Coming soon |
-| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo2, then UnrealEgo-RW | UnrealEgo-RW | Coming soon |
+| Model | Training data | Test set | File | Download |
+|---|---|---|---|---|
+| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo2 | UnrealEgo2 | `egorayformer_ue2.ckpt` | Coming soon |
+| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo-RW | UnrealEgo-RW | `egorayformer_rw.ckpt` | Coming soon |
+| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo2, then UnrealEgo-RW | UnrealEgo-RW | `egorayformer_ue2_to_rw.ckpt` | Coming soon |
 
-A checkpoint is evaluated with the configs it was trained with (see [Training](#training)), e.g. the UnrealEgo-RW model
-on the validation split:
+SHA-256:
+
+```
+f4a0028421d3b9a1d8bb45fe3d336e072d8036a59afc4841fb03c5d7ce9c5100  egorayformer_ue2.ckpt
+5b4612438b6204bab198f9e9d1cc7e696cd919052bc48c5cd084676e932f4c08  egorayformer_rw.ckpt
+dfeb9c2867e14f4df97cda35f8fbffa37ba34f003e5a3b4133753a73ce12856e  egorayformer_ue2_to_rw.ckpt
+```
+
+Each model has one config file with all of its settings (`configs/egorayformer_ue2.yaml`, `egorayformer_rw.yaml`,
+`egorayformer_ue2_to_rw.yaml`); `configs/eval.yaml` adds the evaluation setting of the paper (FP32, every sequence as one
+causal stream). Evaluation on the validation split:
 
 ```bash
-python run.py validate --config configs/base_unrealego.yaml --config configs/data_device_relative.yaml \
-  --config configs/res_256.yaml --config configs/data_rw_only.yaml --config configs/egorayformer_full.yaml \
-  --config configs/ablations/no_p4.yaml --config configs/enc_sfvit_s.yaml --config configs/invalid_view_mask.yaml \
-  --config configs/res_384.yaml --model.model.encoder.pretrained false --data.root /data/unrealego/processed \
-  --trainer.devices 1 --trainer.strategy auto --model.eval_precision fp32 --data.eval_clip_len 0 \
-  --ckpt_path <checkpoint.ckpt>
+python run.py validate --config configs/egorayformer_rw.yaml --config configs/eval.yaml \
+  --model.model.encoder.pretrained false --data.root /data/unrealego/processed --ckpt_path egorayformer_rw.ckpt
 ```
+
+Use `egorayformer_ue2` or `egorayformer_ue2_to_rw` for the other two models, and `EGORAYFORMER_ALLOW_TEST=1 python run.py
+test` with the same arguments for the test split. `--model.model.encoder.pretrained false` skips the download of the
+DINOv3 weights, which come from the checkpoint.
 
 ## Data
 
@@ -103,7 +113,8 @@ proxy.
 
 ## Training
 
-Configs compose from left to right; later files override single keys. Every model is trained in two stages:
+The three models of Table 1 have one config file each (`configs/egorayformer_*.yaml`). The other experiments compose
+several configs from left to right, where later files override single keys. Every model is trained in two stages:
 
 1. 2D heatmap pre-training of the encoder at 256 × 256 (`configs/stage_heatmap.yaml`);
 2. end-to-end training, initialised from the last stage-1 checkpoint.
@@ -119,7 +130,6 @@ export ROOT=$DATA_ROOT/processed                    # checked by run_baselines.s
 D="--data.root $ROOT"
 H="--data.batch_size 256 --trainer.strategy auto $D"                                   # stage 1
 T="--trainer.strategy auto --data.batch_size 16 --data.clips_per_epoch_scale 2 $D"     # stage 2
-S="--config configs/ablations/no_p4.yaml --config configs/enc_sfvit_s.yaml --config configs/invalid_view_mask.yaml"
 
 # Stage 1, DINOv3 ViT-S+/16 encoder
 HM_NAME=hm_sfvit_s_rw  TRAINSET=rw  GPUS=0 HM_EXTRA="--config configs/enc_sfvit_s.yaml $H" bash scripts/run_baselines.sh heatmap
@@ -127,28 +137,21 @@ HM_NAME=hm_sfvit_s_ue2 TRAINSET=ue2 GPUS=0 HM_EXTRA="--config configs/enc_sfvit_
 
 # Table 1: trained on UnrealEgo-RW -> run egorayformer_device_rw_main
 HM_NAME=hm_sfvit_s_rw TRAINSET=rw PROTOS=device GPUS=0 RUN_SUFFIX=_main \
-  EXTRA="$S --config configs/res_384.yaml $T" bash scripts/run_baselines.sh egorayformer
+  EXTRA="--config configs/egorayformer_rw.yaml $D" bash scripts/run_baselines.sh egorayformer
 # Table 1: trained on UnrealEgo2 (3 epochs) -> run egorayformer_device_ue2_main
 HM_NAME=hm_sfvit_s_ue2 TRAINSET=ue2 PROTOS=device GPUS=0 RUN_SUFFIX=_main \
-  EXTRA="$S --config configs/fov_circle.yaml --config configs/res_384.yaml --config configs/sched_e3.yaml $T" \
-  bash scripts/run_baselines.sh egorayformer
+  EXTRA="--config configs/egorayformer_ue2.yaml $D" bash scripts/run_baselines.sh egorayformer
 # Table 1: UnrealEgo2, then UnrealEgo-RW (weights of the best UnrealEgo2 checkpoint of the same seed)
 INIT_FROM_RUN=egorayformer_device_ue2_main TRAINSET=rw PROTOS=device GPUS=0 RUN_SUFFIX=_from_ue2 \
-  EXTRA="$S --config configs/fov_circle.yaml --config configs/res_384.yaml --config configs/data_ue2_then_rw.yaml $T" \
-  bash scripts/run_baselines.sh egorayformer
+  EXTRA="--config configs/egorayformer_ue2_to_rw.yaml $D" bash scripts/run_baselines.sh egorayformer
 ```
 
-For the RW model, stage 2 expands to the following command (`DRY=1` prints the commands of a launcher without running
-them):
+Without the launcher, stage 2 of the RW model is a single command (logs and checkpoints go to
+`work_dirs/egorayformer_rw/`):
 
 ```bash
-python run.py fit --config configs/base_unrealego.yaml --config configs/data_device_relative.yaml \
-  --config configs/res_256.yaml --config configs/data_rw_only.yaml --config configs/egorayformer_full.yaml \
-  --model.encoder_pretrained "$(python scripts/ckpt_select.py last hm_sfvit_s_rw)" \
-  --config configs/ablations/no_p4.yaml --config configs/enc_sfvit_s.yaml --config configs/invalid_view_mask.yaml \
-  --config configs/res_384.yaml --trainer.strategy auto --data.batch_size 16 --data.clips_per_epoch_scale 2 \
-  --data.root $ROOT --trainer.devices 1 --trainer.default_root_dir work_dirs/egorayformer_device_rw_main \
-  --trainer.logger '[{"class_path":"pytorch_lightning.loggers.CSVLogger","init_args":{"save_dir":"work_dirs/egorayformer_device_rw_main"}}]'
+python run.py fit --config configs/egorayformer_rw.yaml --data.root $ROOT \
+  --model.encoder_pretrained "$(python scripts/ckpt_select.py last hm_sfvit_s_rw)"
 ```
 
 The other experiments of the paper:
@@ -171,6 +174,7 @@ HM_NAME=hm_r18_ue2 TRAINSET=ue2 PROTOS=device GPUS=0 RUN_SUFFIX=_tsr EXTRA="$L" 
 HM_NAME=hm_r18_rw  TRAINSET=rw  PROTOS=root   GPUS=0 RUN_SUFFIX=_tsr EXTRA="$L" bash scripts/run_baselines.sh tsr
 
 # Table 3: ablations on UnrealEgo-RW (validation)
+S="--config configs/ablations/no_p4.yaml --config configs/enc_sfvit_s.yaml --config configs/invalid_view_mask.yaml"
 for abl in no_geo no_p3 no_track_prior; do        # geometric branch, trajectory-aligned sampling, track prior
   HM_NAME=hm_sfvit_s_rw TRAINSET=rw PROTOS=device GPUS=0 RUN_SUFFIX=_$abl \
     EXTRA="$S --config configs/res_384.yaml --config configs/ablations/$abl.yaml $T" bash scripts/run_baselines.sh egorayformer
@@ -210,7 +214,7 @@ egorayformer/
   models/              encoders (ResNet-18 + FPN, DINOv3 ConvNeXt, fisheye-native stereo ViT), attention and ray-geometry layers, EgoRayFormer
   training/            LightningModule, losses, typed config dataclasses
   eval/                metrics (MPJPE, PA-MPJPE, PCK, AUC, MPJVE, strata), input audit, benchmark export
-configs/               composable configs: protocols, datasets, encoders, resolutions, model switches, ablations/
+configs/               one file per released model (egorayformer_*.yaml), eval.yaml, composable configs for the other experiments
 scripts/               data preparation, training launcher, checkpoint selection, evaluation
 assets/                architecture figure
 docs/logo/             logos

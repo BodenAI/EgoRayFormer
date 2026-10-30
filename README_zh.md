@@ -60,24 +60,33 @@ pip install -e .
 
 ## 预训练模型
 
-表 1 的模型权重即将发布。
+表 1 的模型（seed 42；结果表报告的是三个 seed 的均值）即将发布，文件中保存的是评测所用的 EMA 权重。
 
-| 模型 | 训练数据 | 测试集 | 权重 |
-|---|---|---|---|
-| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo2 | UnrealEgo2 | 即将发布 |
-| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo-RW | UnrealEgo-RW | 即将发布 |
-| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo2 → UnrealEgo-RW | UnrealEgo-RW | 即将发布 |
+| 模型 | 训练数据 | 测试集 | 文件 | 下载 |
+|---|---|---|---|---|
+| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo2 | UnrealEgo2 | `egorayformer_ue2.ckpt` | 即将发布 |
+| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo-RW | UnrealEgo-RW | `egorayformer_rw.ckpt` | 即将发布 |
+| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo2 → UnrealEgo-RW | UnrealEgo-RW | `egorayformer_ue2_to_rw.ckpt` | 即将发布 |
 
-评测某个 checkpoint 时，使用它训练时的配置（见[训练](#训练)）。例如在验证集上评测 UnrealEgo-RW 模型：
+SHA-256：
+
+```
+f4a0028421d3b9a1d8bb45fe3d336e072d8036a59afc4841fb03c5d7ce9c5100  egorayformer_ue2.ckpt
+5b4612438b6204bab198f9e9d1cc7e696cd919052bc48c5cd084676e932f4c08  egorayformer_rw.ckpt
+dfeb9c2867e14f4df97cda35f8fbffa37ba34f003e5a3b4133753a73ce12856e  egorayformer_ue2_to_rw.ckpt
+```
+
+每个模型都有一个包含全部设置的配置文件（`configs/egorayformer_ue2.yaml`、`egorayformer_rw.yaml`、
+`egorayformer_ue2_to_rw.yaml`），`configs/eval.yaml` 是论文的评测设置（FP32，每条序列作为一个因果流）。在验证集上评测：
 
 ```bash
-python run.py validate --config configs/base_unrealego.yaml --config configs/data_device_relative.yaml \
-  --config configs/res_256.yaml --config configs/data_rw_only.yaml --config configs/egorayformer_full.yaml \
-  --config configs/ablations/no_p4.yaml --config configs/enc_sfvit_s.yaml --config configs/invalid_view_mask.yaml \
-  --config configs/res_384.yaml --model.model.encoder.pretrained false --data.root /data/unrealego/processed \
-  --trainer.devices 1 --trainer.strategy auto --model.eval_precision fp32 --data.eval_clip_len 0 \
-  --ckpt_path <checkpoint.ckpt>
+python run.py validate --config configs/egorayformer_rw.yaml --config configs/eval.yaml \
+  --model.model.encoder.pretrained false --data.root /data/unrealego/processed --ckpt_path egorayformer_rw.ckpt
 ```
+
+另外两个模型把 `egorayformer_rw` 换成 `egorayformer_ue2` 或 `egorayformer_ue2_to_rw`；评测测试集时，用相同参数运行
+`EGORAYFORMER_ALLOW_TEST=1 python run.py test`。`--model.model.encoder.pretrained false` 表示不下载 DINOv3 预训练权重
+（权重来自 checkpoint）。
 
 ## 数据
 
@@ -98,7 +107,8 @@ bash scripts/stage_unrealego2_stream.sh test
 
 ## 训练
 
-配置文件从左到右组合，后面的文件覆盖前面同名的键。每个模型分两个阶段训练：
+表 1 的三个模型各有一个配置文件（`configs/egorayformer_*.yaml`）；其他实验由多个配置从左到右组合，后面的文件覆盖
+前面同名的键。每个模型分两个阶段训练：
 
 1. 编码器在 256 × 256 上做 2D 热图预训练（`configs/stage_heatmap.yaml`）；
 2. 从 stage-1 的最后一个 checkpoint 初始化，进行端到端训练。
@@ -113,7 +123,6 @@ export ROOT=$DATA_ROOT/processed                    # run_baselines.sh 会检查
 D="--data.root $ROOT"
 H="--data.batch_size 256 --trainer.strategy auto $D"                                   # stage 1
 T="--trainer.strategy auto --data.batch_size 16 --data.clips_per_epoch_scale 2 $D"     # stage 2
-S="--config configs/ablations/no_p4.yaml --config configs/enc_sfvit_s.yaml --config configs/invalid_view_mask.yaml"
 
 # Stage 1，DINOv3 ViT-S+/16 编码器
 HM_NAME=hm_sfvit_s_rw  TRAINSET=rw  GPUS=0 HM_EXTRA="--config configs/enc_sfvit_s.yaml $H" bash scripts/run_baselines.sh heatmap
@@ -121,27 +130,20 @@ HM_NAME=hm_sfvit_s_ue2 TRAINSET=ue2 GPUS=0 HM_EXTRA="--config configs/enc_sfvit_
 
 # 表 1：在 UnrealEgo-RW 上训练 -> run egorayformer_device_rw_main
 HM_NAME=hm_sfvit_s_rw TRAINSET=rw PROTOS=device GPUS=0 RUN_SUFFIX=_main \
-  EXTRA="$S --config configs/res_384.yaml $T" bash scripts/run_baselines.sh egorayformer
+  EXTRA="--config configs/egorayformer_rw.yaml $D" bash scripts/run_baselines.sh egorayformer
 # 表 1：在 UnrealEgo2 上训练（3 个 epoch）-> run egorayformer_device_ue2_main
 HM_NAME=hm_sfvit_s_ue2 TRAINSET=ue2 PROTOS=device GPUS=0 RUN_SUFFIX=_main \
-  EXTRA="$S --config configs/fov_circle.yaml --config configs/res_384.yaml --config configs/sched_e3.yaml $T" \
-  bash scripts/run_baselines.sh egorayformer
+  EXTRA="--config configs/egorayformer_ue2.yaml $D" bash scripts/run_baselines.sh egorayformer
 # 表 1：先 UnrealEgo2、再 UnrealEgo-RW（加载同一种子 UnrealEgo2 模型的最优 checkpoint 权重）
 INIT_FROM_RUN=egorayformer_device_ue2_main TRAINSET=rw PROTOS=device GPUS=0 RUN_SUFFIX=_from_ue2 \
-  EXTRA="$S --config configs/fov_circle.yaml --config configs/res_384.yaml --config configs/data_ue2_then_rw.yaml $T" \
-  bash scripts/run_baselines.sh egorayformer
+  EXTRA="--config configs/egorayformer_ue2_to_rw.yaml $D" bash scripts/run_baselines.sh egorayformer
 ```
 
-以 RW 模型为例，stage 2 展开后的命令如下（`DRY=1` 只打印 launcher 的命令而不执行）：
+不使用 launcher 时，RW 模型的 stage 2 只需一条命令（日志和 checkpoint 写到 `work_dirs/egorayformer_rw/`）：
 
 ```bash
-python run.py fit --config configs/base_unrealego.yaml --config configs/data_device_relative.yaml \
-  --config configs/res_256.yaml --config configs/data_rw_only.yaml --config configs/egorayformer_full.yaml \
-  --model.encoder_pretrained "$(python scripts/ckpt_select.py last hm_sfvit_s_rw)" \
-  --config configs/ablations/no_p4.yaml --config configs/enc_sfvit_s.yaml --config configs/invalid_view_mask.yaml \
-  --config configs/res_384.yaml --trainer.strategy auto --data.batch_size 16 --data.clips_per_epoch_scale 2 \
-  --data.root $ROOT --trainer.devices 1 --trainer.default_root_dir work_dirs/egorayformer_device_rw_main \
-  --trainer.logger '[{"class_path":"pytorch_lightning.loggers.CSVLogger","init_args":{"save_dir":"work_dirs/egorayformer_device_rw_main"}}]'
+python run.py fit --config configs/egorayformer_rw.yaml --data.root $ROOT \
+  --model.encoder_pretrained "$(python scripts/ckpt_select.py last hm_sfvit_s_rw)"
 ```
 
 论文中的其他实验：
@@ -163,6 +165,7 @@ HM_NAME=hm_r18_ue2 TRAINSET=ue2 PROTOS=device GPUS=0 RUN_SUFFIX=_tsr EXTRA="$L" 
 HM_NAME=hm_r18_rw  TRAINSET=rw  PROTOS=root   GPUS=0 RUN_SUFFIX=_tsr EXTRA="$L" bash scripts/run_baselines.sh tsr
 
 # 表 3：UnrealEgo-RW 上的消融（验证集）
+S="--config configs/ablations/no_p4.yaml --config configs/enc_sfvit_s.yaml --config configs/invalid_view_mask.yaml"
 for abl in no_geo no_p3 no_track_prior; do        # 几何分支、轨迹对齐采样、轨迹先验
   HM_NAME=hm_sfvit_s_rw TRAINSET=rw PROTOS=device GPUS=0 RUN_SUFFIX=_$abl \
     EXTRA="$S --config configs/res_384.yaml --config configs/ablations/$abl.yaml $T" bash scripts/run_baselines.sh egorayformer
@@ -200,7 +203,7 @@ egorayformer/
   models/              编码器（ResNet-18 + FPN、DINOv3 ConvNeXt、鱼眼原生双目 ViT）、注意力与射线几何层、EgoRayFormer
   training/            LightningModule、损失函数、类型化配置
   eval/                指标（MPJPE、PA-MPJPE、PCK、AUC、MPJVE、分层统计）、输入审查、基准格式导出
-configs/               可组合配置：协议、数据集、编码器、分辨率、模型开关、ablations/
+configs/               每个发布模型一个配置（egorayformer_*.yaml）、eval.yaml、其他实验用的可组合配置
 scripts/               数据准备、训练启动、checkpoint 选择、评测
 assets/                架构图
 docs/logo/             logo

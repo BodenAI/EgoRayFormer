@@ -1,0 +1,98 @@
+# EgoRayFormer trained on UnrealEgo-RW (Table 1): DINOv3 ViT-S+/16 at 384x384, device-relative protocol, 12 epochs.
+# Every setting of the model in one file; stage 2 starts from the UnrealEgo-RW stage-1 heatmap checkpoint.
+#   train:    python run.py fit --config configs/egorayformer_rw.yaml --data.root <records> --model.encoder_pretrained <stage-1 last.ckpt>
+#   evaluate: python run.py validate --config configs/egorayformer_rw.yaml --config configs/eval.yaml \
+#               --model.model.encoder.pretrained false --data.root <records> --ckpt_path <checkpoint>
+seed_everything: 42
+data:
+  root: /data/unrealego/processed
+  train:
+  - {dataset: unrealego_rw, split: train, weight: 1.0}
+  val:
+  - {dataset: unrealego_rw, split: validation}
+  test:
+  - {dataset: unrealego_rw, split: test}
+  clip_len: 8
+  frame_stride: 1
+  target_frame: device
+  img_size: 384
+  batch_size: 16
+  eval_batch_size: 32
+  num_workers: 8
+  augment: true
+  weighted_sampling: false
+  eval_clip_len: 32
+  clips_per_epoch_scale: 2
+model:
+  stage: e2e
+  heatmap_size: 64
+  heatmap_sigma: 1.5
+  use_ema: true
+  ema_decay: 0.999
+  eval_streaming: true
+  model:
+    encoder: {type: stereo_fisheye_vit, model_name: vit_small_plus_patch16_dinov3.lvd1689m, pretrained: true, out_channels: 128,
+      fisheye_patch: true, ray_pe: true, xview_layers: 2, feature_lut: true, drop_path: 0.05}
+    rigs: [unrealego]
+    embed_dims: 128
+    num_heads: 4
+    ffn_dims: 512
+    image_size: 384
+    proposal_layers: 1
+    refine_layers: 3
+    deform_points: 16
+    e2e_grad: true
+    iter_reproj: true
+    conf_gate: true
+    kin_bias: true
+    uncertainty: false
+    temporal_window: 8
+    track_prior: true
+    dataset_embed: true
+    heatmap_head: true
+    denoise_groups: 1
+    denoise_std_cm: 5.0
+    sampling: ray_consistent
+    geo_branch: true
+    geo_gate_init: -2.0
+    traj_window: 4
+    temporal_pos: rope
+    temporal_mixer: false
+    refine_mode: residual
+    uncertainty_per_layer: false
+    track_prior_uses_uncertainty: false
+    p2_mask_invalid_views: true
+  loss: {w_mpjpe: 1.0, w_proposal: 1.0, w_aux_layers: 1.0, w_nll: 0.0, nll_nu: 3.0, nll_warmup_frac: 0.5, w_heatmap: 10.0,
+    w_reproj: 0.05, w_bone: 0.1, w_vel: 0.5, w_jerk: 0.2, w_dn: 1.0, w_nll_aux: 0.0, w_res2d: 0.05, w_geo: 0.5}
+  optim:
+    lr: 0.001
+    weight_decay: 0.0005
+    encoder_lr_scale: 0.15
+    layer_decay: 0.8
+    warmup_steps: 500
+    schedule: multistep
+    milestones: [8, 10]
+    gamma: 0.1
+    grad_clip: 5.0
+  export_name_style: unrealego_rw
+trainer:
+  max_epochs: 12
+  devices: 1
+  accelerator: gpu
+  strategy: auto
+  precision: bf16-mixed
+  benchmark: true
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  default_root_dir: ./work_dirs/egorayformer_rw
+  callbacks:
+  - class_path: pytorch_lightning.callbacks.TQDMProgressBar
+    init_args: {refresh_rate: 50}
+  - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+    init_args: {every_n_epochs: 1, save_top_k: 1, save_last: true, filename: 'epoch={epoch}', monitor: val/mpjpe, mode: min,
+      auto_insert_metric_name: false}
+  - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+    init_args: {logging_interval: step}
+  logger:
+  - class_path: pytorch_lightning.loggers.CSVLogger
+    init_args: {save_dir: ./work_dirs/egorayformer_rw}

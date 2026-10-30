@@ -1,0 +1,11 @@
+# Evaluation as reported in the paper: FP32, every sequence as one causal stream from its first frame, one device.
+#   python run.py validate --config configs/egorayformer_rw.yaml --config configs/eval.yaml \
+#     --model.model.encoder.pretrained false --data.root <records> --ckpt_path <checkpoint>
+# (--model.model.encoder.pretrained false: the weights come from the checkpoint, nothing is downloaded)
+data:
+  eval_clip_len: 0
+model:
+  eval_precision: fp32
+trainer:
+  devices: 1
+  strategy: auto
