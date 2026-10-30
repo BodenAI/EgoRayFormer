@@ -1,0 +1,47 @@
+# Run outputs and datasets (root-level only: the package egorayformer/data/ is source code)
+/work_dirs/
+/data/
+/visualizations/
+lightning_logs/
+/code_hash.txt
+
+# Weights, checkpoints, arrays
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.onnx
+*.npy
+*.npz
+*.pkl
+*.h5
+*.hdf5
+*.parquet
+
+# Archives and videos
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.mp4
+*.avi
+*.mkv
+*.mov
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp

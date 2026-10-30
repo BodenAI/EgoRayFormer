@@ -1,0 +1,52 @@
+# EgoRayFormer full model: P2 ray-consistent 3D stereo sampling + differentiable two-ray intersection with an uncertainty
+# gate, P3 trajectory-aligned causal sampling of the past 4 frames, P4 per-layer Cholesky uncertainty used in the
+# gate / temporal weights / track prior. Causal video training (T = 8), streaming evaluation.
+# Compose: base_unrealego.yaml + data_{device,root}_relative.yaml + enc_*.yaml + egorayformer_full.yaml
+data:
+  clip_len: 8
+  eval_clip_len: 32
+  frame_stride: 1
+  batch_size: 8
+  eval_batch_size: 8
+model:
+  eval_streaming: true
+  model:
+    proposal_layers: 1
+    refine_layers: 3
+    sampling: ray_consistent
+    deform_points: 16
+    geo_branch: true
+    geo_gate_init: -2.0
+    traj_window: 4
+    temporal_window: 8
+    temporal_pos: rope
+    temporal_mixer: false
+    refine_mode: residual
+    e2e_grad: true
+    iter_reproj: true
+    kin_bias: true
+    uncertainty: true
+    uncertainty_per_layer: true
+    track_prior: true
+    track_prior_uses_uncertainty: true
+    denoise_groups: 1
+  loss:
+    w_mpjpe: 1.0
+    w_proposal: 1.0
+    w_aux_layers: 1.0
+    w_nll: 1.0
+    w_nll_aux: 0.5
+    nll_warmup_frac: 0.5
+    w_heatmap: 10.0
+    w_reproj: 0.05
+    w_res2d: 0.05
+    w_geo: 0.5
+    w_bone: 0.1
+    w_vel: 0.5
+    w_jerk: 0.2
+    w_dn: 1.0
+trainer:
+  default_root_dir: ./work_dirs/egorayformer_full
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/egorayformer_full}

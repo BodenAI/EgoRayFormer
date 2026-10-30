@@ -1,0 +1,72 @@
+# TSR-like control: a same-framework baseline *inspired by* TSR-Ego (Azam et al., arXiv
+# 2607.09169) for a same-backbone / same-resolution / same-window comparison - NOT a faithful re-implementation. Report
+# it as "TSR-like" and the paper's own numbers separately; the item-by-item comparison with the paper is in
+# paper/results/tsr_like_checklist.md. Known difference: the shared RefineLayer runs stereo cross-attention -> joint
+# self-attention -> causal temporal attention -> FFN, while TSR-Ego describes temporal -> joint -> stereo -> FFN.
+#   * ResNet-18 + FPN at 256x256 (heatmap-pretrained encoder), C = 128
+#   * Causal Temporal Feature Mixer on the dense stereo features (2 blocks, k = 3, dilations 1,2 -> 7-frame RF)
+#   * single-stage decoder: learned joint queries + learned zero-initialised 3D reference P0 (no proposal stage)
+#   * 2 decoder layers with causal temporal self-attention (age embedding), joint self-attention, fisheye deformable
+#     stereo cross-attention around the detached projection of the previous layer's pose and an FFN (executed in the
+#     order above: cross-attention first), layer-wise *absolute* pose head P_l = P0 + h_l(Q_l) (zero-initialised)
+#   * hard FOV masking in the view fusion, no uncertainty, no kinematic bias, no denoising queries
+#   * loss: MPJPE, w_final = 1.0, w_aux = 0.5; T = 8 causal window; AdamW 1e-3, wd 5e-4, warmup 200, decay x0.1 at epochs 8, 10
+# Compose:  base_unrealego.yaml + data_{root,device}_relative.yaml (+ data_rw_only.yaml) + baseline_tsr_ego.yaml
+#           and pass --model.encoder_pretrained <heatmap ckpt>.
+data:
+  clip_len: 8
+  eval_clip_len: 32
+  frame_stride: 1
+  batch_size: 16
+  eval_batch_size: 8
+model:
+  eval_streaming: true
+  use_ema: false
+  model:
+    encoder: {type: r18_fpn, model_name: resnet18, pretrained: true, out_channels: 128}
+    proposal_layers: 0
+    refine_layers: 2
+    refine_mode: absolute
+    sampling: dsa
+    deform_points: 16
+    temporal_mixer: true
+    tfm_blocks: 2
+    tfm_kernel: 3
+    tfm_dilations: [1, 2]
+    temporal_window: 8
+    temporal_pos: age
+    iter_reproj: true
+    e2e_grad: true
+    conf_gate: false
+    kin_bias: false
+    uncertainty: false
+    dataset_embed: false
+    track_prior: false
+    traj_window: 0
+    geo_branch: false
+    denoise_groups: 0
+  loss:
+    w_mpjpe: 1.0
+    w_aux_layers: 0.5
+    w_proposal: 0.0
+    w_nll: 0.0
+    w_heatmap: 0.0
+    w_reproj: 0.0
+    w_bone: 0.0
+    w_dn: 0.0
+    w_vel: 0.0
+    w_jerk: 0.0
+  optim:
+    lr: 0.001
+    weight_decay: 0.0005
+    warmup_steps: 200
+    schedule: multistep
+    milestones: [8, 10]
+    gamma: 0.1
+    grad_clip: null
+trainer:
+  max_epochs: 12
+  default_root_dir: ./work_dirs/baseline_tsr_ego
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/baseline_tsr_ego}

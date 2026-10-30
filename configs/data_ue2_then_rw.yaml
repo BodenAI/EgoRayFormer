@@ -1,0 +1,23 @@
+# UnrealEgo2 → UnrealEgo-RW fine-tuning. The data are those of data_rw_only.yaml;
+# the difference is the initialisation: the weights of the finished UE2-only run's best-validation
+# checkpoint (--model.init_from, EMA weights) with a fresh optimizer, learning-rate schedule, epoch and step counter -
+# an independent RW budget of max_epochs. Do not use --ckpt_path for this: it resumes the UE2 training (optimizer,
+# scheduler, epoch), and a UE2 run that already reached max_epochs would train for 0 steps. With
+# scripts/run_baselines.sh (INIT_FROM_RUN=<UE2-only run>: waits for it, takes its best checkpoint), e.g.
+#   INIT_FROM_RUN=egorayformer_device_ue2_main TRAINSET=rw PROTOS=device \
+#     RUN_SUFFIX=_from_ue2 EXTRA="--config configs/ablations/no_p4.yaml --config configs/enc_sfvit_s.yaml \
+#     --config configs/invalid_view_mask.yaml --config configs/fov_circle.yaml --config configs/data_ue2_then_rw.yaml" \
+#     bash scripts/run_baselines.sh egorayformer
+data:
+  train: [{dataset: unrealego_rw, split: train, weight: 1.0}]
+  val: [{dataset: unrealego_rw, split: validation}]
+  test: [{dataset: unrealego_rw, split: test}]
+  weighted_sampling: false
+model:
+  export_name_style: unrealego_rw
+  init_from_ema: true
+trainer:
+  default_root_dir: ./work_dirs/ue2_then_rw
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/ue2_then_rw}

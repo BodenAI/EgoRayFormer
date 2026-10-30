@@ -1,0 +1,95 @@
+# Base config: UnrealEgo pelvis-relative protocol, single frame (T=1), ResNet-18 encoder (tier A).
+# Override encoders / stages / video settings by passing extra --config files (later files win):
+#   python run.py fit --config configs/base_unrealego.yaml --config configs/enc_sfvit_s.yaml
+seed_everything: 42
+
+data:
+  root: /data/unrealego/processed
+  train: [{dataset: unrealego, split: train}]
+  val: [{dataset: unrealego, split: validation}]
+  test: [{dataset: unrealego, split: test}]
+  clip_len: 1
+  frame_stride: 1
+  target_frame: pelvis
+  img_size: 256
+  batch_size: 32          # total across devices is handled by Lightning (per-device batch)
+  eval_batch_size: 64
+  num_workers: 8
+  augment: true
+  weighted_sampling: false
+
+model:
+  stage: e2e
+  encoder_pretrained: null
+  heatmap_size: 64
+  heatmap_sigma: 1.5
+  use_ema: true
+  ema_decay: 0.999
+  eval_streaming: false
+  model:
+    encoder: {type: r18_fpn, model_name: resnet18, pretrained: true, out_channels: 128}
+    rigs: [unrealego]
+    embed_dims: 128
+    num_heads: 4
+    ffn_dims: 512
+    image_size: 256
+    proposal_layers: 1
+    refine_layers: 3
+    deform_points: 16
+    e2e_grad: true
+    iter_reproj: true
+    conf_gate: true
+    kin_bias: true
+    uncertainty: true
+    temporal_window: 1
+    track_prior: false
+    dataset_embed: true
+    heatmap_head: true
+    denoise_groups: 1
+    denoise_std_cm: 5.0
+  loss:
+    w_mpjpe: 1.0
+    w_proposal: 1.0
+    w_aux_layers: 1.0
+    w_nll: 1.0
+    nll_nu: 3.0
+    nll_warmup_frac: 0.5
+    w_heatmap: 10.0
+    w_reproj: 0.05
+    w_bone: 0.1
+    w_vel: 0.0
+    w_jerk: 0.0
+    w_dn: 1.0
+  optim:
+    lr: 0.001
+    weight_decay: 0.0005
+    encoder_lr_scale: 1.0
+    layer_decay: 1.0
+    warmup_steps: 500
+    schedule: multistep
+    milestones: [8, 10]
+    gamma: 0.1
+    grad_clip: 5.0
+
+trainer:
+  max_epochs: 12
+  devices: 4
+  accelerator: gpu
+  strategy: ddp_find_unused_parameters_true   # the heatmap stage / ablations leave decoder parameters unused
+  precision: bf16-mixed
+  benchmark: true
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  default_root_dir: ./work_dirs/unrealego_r18
+  callbacks:
+    - class_path: pytorch_lightning.callbacks.TQDMProgressBar
+      init_args: {refresh_rate: 50}
+    - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+      init_args: {every_n_epochs: 1, save_top_k: -1, save_last: true, filename: "{epoch}"}
+    - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+      init_args: {logging_interval: step}
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/unrealego_r18}
+    - class_path: pytorch_lightning.loggers.TensorBoardLogger
+      init_args: {save_dir: ./work_dirs/unrealego_r18, name: tb}

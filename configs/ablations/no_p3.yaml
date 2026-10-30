@@ -1,0 +1,4 @@
+# Ablation: remove P3 trajectory-aligned past sampling (query-level causal temporal attention only).
+model:
+  model: {traj_window: 0}
+trainer: {default_root_dir: ./work_dirs/abl_no_p3}

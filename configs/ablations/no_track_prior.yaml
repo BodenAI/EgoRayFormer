@@ -1,0 +1,4 @@
+# Ablation: no track-prior token (previous prediction as an input); temporal attention and P3 stay.
+model:
+  model: {track_prior: false}
+trainer: {default_root_dir: ./work_dirs/abl_no_track_prior}

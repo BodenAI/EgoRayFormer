@@ -1,0 +1,4 @@
+# Resolution ablation: 256x256 input (v1 protocol resolution).
+data: {img_size: 256, batch_size: 32, eval_batch_size: 64}
+model:
+  model: {image_size: 256}

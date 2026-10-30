@@ -1,0 +1,5 @@
+# Ablation: P2 sampling kept, but no two-ray intersection / gate (pure learned offsets).
+model:
+  model: {sampling: ray_consistent, geo_branch: false}
+  loss: {w_res2d: 0.0, w_geo: 0.0}
+trainer: {default_root_dir: ./work_dirs/abl_no_geo}

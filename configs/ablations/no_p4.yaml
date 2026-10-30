@@ -1,0 +1,5 @@
+# Ablation: remove P4 (no uncertainty heads -> gate / temporal weights / track prior lose the uncertainty inputs; no NLL).
+model:
+  model: {uncertainty: false, uncertainty_per_layer: false, track_prior_uses_uncertainty: false}
+  loss: {w_nll: 0.0, w_nll_aux: 0.0}
+trainer: {default_root_dir: ./work_dirs/abl_no_p4}

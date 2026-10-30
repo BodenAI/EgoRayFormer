@@ -1,0 +1,13 @@
+# UnrealEgo2 only (official UE2 leaderboard training data). Compose after data_device_relative.yaml or data_root_relative.yaml.
+data:
+  train: [{dataset: unrealego2, split: train, weight: 1.0}]
+  val: [{dataset: unrealego2, split: validation}]
+  test: [{dataset: unrealego2, split: test}]
+  weighted_sampling: false
+model:
+  export_name_style: unrealego2
+trainer:
+  default_root_dir: ./work_dirs/ue2_only
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/ue2_only}

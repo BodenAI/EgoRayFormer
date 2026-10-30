@@ -1,0 +1,7 @@
+# A projection or 2D label outside the fisheye image circle counts as outside the view (invalid-view masks, the
+# geometry gate's view count, heatmap targets) - the valid region that the warped images of the rig augmentation
+# also follow (model.model.fov_circle). Used by the paper's configurations trained on UnrealEgo2 (also those then
+# fine-tuned on UnrealEgo-RW); compose after invalid_view_mask.yaml.
+model:
+  model:
+    fov_circle: true

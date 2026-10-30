@@ -1,0 +1,9 @@
+# UnrealEgo2-only training: a complete 3-epoch schedule - the 12-epoch multistep
+# recipe [8, 10] scaled by 3 / 12. Milestones are in epochs and may be fractions (training/config.py milestone_steps: the
+# decay starts at the first step >= milestone x steps per epoch; 15,943 steps per UE2 epoch -> steps 31,886 and 39,858).
+# Warm-up (500 steps) and the EMA decay are per step and stay as they are.
+model:
+  optim:
+    milestones: [2.0, 2.5]
+trainer:
+  max_epochs: 3

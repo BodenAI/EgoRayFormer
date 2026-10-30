@@ -1,0 +1,5 @@
+# TSR-Ego decoder layer order: causal temporal self-attention -> joint
+# self-attention -> fisheye deformable stereo cross-attention -> FFN, as described in TSR-Ego (Azam et al., arXiv
+# 2607.09169). Compose after baseline_tsr_ego.yaml, whose shared RefineLayer otherwise runs cross-attention first.
+model:
+  model: {refine_layer_order: temporal_first}

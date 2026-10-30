@@ -1,0 +1,22 @@
+# Tier C small variant: DINOv3 ViT-S+/16.
+# Encoder only: the decoder recipe (lr, weight decay, schedule, batch) stays the one of the configs composed before, so a
+# P1 run differs from its R18 reference only in the encoder. encoder_lr_scale keeps the ViT at the designed absolute lr
+# (0.15 x 1e-3 = 0.3 x 5e-4); layer decay applies to the pretrained ViT blocks only (StereoFisheyeViT.param_groups).
+model:
+  model:
+    encoder:
+      type: stereo_fisheye_vit
+      model_name: vit_small_plus_patch16_dinov3.lvd1689m
+      pretrained: true
+      fisheye_patch: true
+      ray_pe: true
+      xview_layers: 2
+      feature_lut: true   # resample the gnomonic feature map into the real image layout (misalignment up to 4 feature px otherwise)
+      out_channels: 128
+      drop_path: 0.05
+  optim: {encoder_lr_scale: 0.15, layer_decay: 0.8}
+trainer:
+  default_root_dir: ./work_dirs/unrealego_sfvit_s
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/unrealego_sfvit_s}

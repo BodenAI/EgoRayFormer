@@ -1,0 +1,23 @@
+# Same-backbone control of enc_sfvit_s.yaml: the identical DINOv3 ViT-S+/16 weights,
+# resolution, pyramid neck, optimiser groups and decoder recipe, with every fisheye-specific part switched off - no
+# gnomonic tokenisation (plain square patches of the fisheye image), no ray-direction input channels, no feature LUT,
+# no stereo cross-view blocks. SFViT minus this run is the gain of the fisheye / stereo encoder design beyond the
+# pretraining; its stage-1 heatmap run must use the recipe of the SFViT one (HM_NAME=heatmap_dinov3_plain_s_256_rw).
+model:
+  model:
+    encoder:
+      type: stereo_fisheye_vit
+      model_name: vit_small_plus_patch16_dinov3.lvd1689m
+      pretrained: true
+      fisheye_patch: false
+      ray_pe: false
+      xview_layers: 0
+      feature_lut: false
+      out_channels: 128
+      drop_path: 0.05
+  optim: {encoder_lr_scale: 0.15, layer_decay: 0.8}
+trainer:
+  default_root_dir: ./work_dirs/unrealego_dinov3_plain_s
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/unrealego_dinov3_plain_s}

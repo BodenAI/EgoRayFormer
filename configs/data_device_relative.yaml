@@ -1,0 +1,29 @@
+# Device-relative protocol (UnrealEgo2 / UnrealEgo-RW leaderboards), multi-dataset joint training.
+# Main setting: 384x384 input (records are stored at 512x512 by preprocess_unrealego_raw.py; see res_*.yaml
+# for the 256 / 384 / 512 resolution-scaling ablation).
+#   python run.py fit --config configs/base_unrealego.yaml --config configs/data_device_relative.yaml --config configs/enc_sfvit_s.yaml
+data:
+  train:
+    - {dataset: unrealego2, split: train, weight: 1.0}
+    - {dataset: unrealego_rw, split: train, weight: 3.0}
+  val:
+    - {dataset: unrealego2, split: validation}
+    - {dataset: unrealego_rw, split: validation}
+  test:
+    - {dataset: unrealego2, split: test}
+    - {dataset: unrealego_rw, split: test}
+  target_frame: device
+  weighted_sampling: true
+  img_size: 384
+  batch_size: 16
+  eval_batch_size: 32
+model:
+  export_name_style: unrealego2
+  model:
+    image_size: 384
+    rigs: [unrealego]   # rigs of the datasets (index.json of the records) are registered automatically at setup
+trainer:
+  default_root_dir: ./work_dirs/ue2rw_384
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/ue2rw_384}

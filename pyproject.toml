@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "egorayformer"
+version = "0.1.0"
+description = "EgoRayFormer: ray-space stereo refinement for egocentric 3D human pose estimation"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Haozhe Wang" }, { name = "Songyuan Wu" }, { name = "Jihai Xu" }, { name = "Jie Zhao" }]
+dependencies = [
+  "torch>=2.4",
+  "torchvision>=0.19",
+  "pytorch-lightning>=2.4",
+  "jsonargparse[signatures]>=4.27.7",
+  "timm>=1.0.20",
+  "einops",
+  "numpy<2",
+  "pyyaml",
+  "opencv-python-headless",
+  "Pillow",
+  "tqdm",
+  "tensorboard",  # TensorBoardLogger of configs/base_unrealego.yaml
+]
+
+[project.urls]
+Paper = "https://arxiv.org/abs/2610.26641"
+Repository = "https://github.com/BodenAI/EgoRayFormer"
+
+[tool.setuptools.packages.find]
+include = ["egorayformer*"]

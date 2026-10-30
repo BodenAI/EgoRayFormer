@@ -1,0 +1,4 @@
+# Resolution ablation: 384x384 input (main setting for UE2 / RW).
+data: {img_size: 384, batch_size: 16, eval_batch_size: 32}
+model:
+  model: {image_size: 384}

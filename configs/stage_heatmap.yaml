@@ -1,0 +1,21 @@
+# Stage 1: 2D heatmap pre-training of the encoder (EgoPoseFormer v1 / v2 and EgoBody3M do this first as well).
+#   python run.py fit --config configs/base_unrealego.yaml --config configs/stage_heatmap.yaml
+model:
+  stage: heatmap
+  use_ema: false
+  loss: {w_heatmap: 10.0}
+  optim: {lr: 0.001, weight_decay: 0.005, milestones: [8, 10]}
+data:
+  batch_size: 64
+trainer:
+  default_root_dir: ./work_dirs/unrealego_heatmap
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/unrealego_heatmap}
+  callbacks:
+    - class_path: pytorch_lightning.callbacks.TQDMProgressBar
+      init_args: {refresh_rate: 50}
+    - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+      init_args: {save_top_k: 1, save_last: true, filename: "epoch={epoch}", auto_insert_metric_name: false}
+    - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+      init_args: {logging_interval: step}

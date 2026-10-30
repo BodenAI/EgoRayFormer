@@ -1,0 +1,14 @@
+# UnrealEgo-RW only (the setting behind the 104.14 mm leaderboard entry of Akada et al. that TSR-Ego compares to,
+# and TSR-Ego's own RW training). Compose after data_device_relative.yaml or data_root_relative.yaml.
+data:
+  train: [{dataset: unrealego_rw, split: train, weight: 1.0}]
+  val: [{dataset: unrealego_rw, split: validation}]
+  test: [{dataset: unrealego_rw, split: test}]
+  weighted_sampling: false
+model:
+  export_name_style: unrealego_rw
+trainer:
+  default_root_dir: ./work_dirs/rw_only
+  logger:
+    - class_path: pytorch_lightning.loggers.CSVLogger
+      init_args: {save_dir: ./work_dirs/rw_only}

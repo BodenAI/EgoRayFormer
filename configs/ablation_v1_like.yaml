@@ -1,0 +1,14 @@
+# Ablation anchor: switch off every addition -> architecture close to EgoPoseFormer v1
+# (proposal detached, anchors projected once, hard FOV fusion, no kinematic bias, no uncertainty, no DN).
+model:
+  model:
+    e2e_grad: false
+    iter_reproj: false
+    conf_gate: false
+    kin_bias: false
+    uncertainty: false
+    dataset_embed: false
+    denoise_groups: 0
+  loss: {w_nll: 0.0, w_reproj: 0.0, w_bone: 0.0, w_dn: 0.0}
+trainer:
+  default_root_dir: ./work_dirs/unrealego_v1like
