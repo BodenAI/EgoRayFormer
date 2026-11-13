@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2610.26641"><img src="https://img.shields.io/badge/arXiv-2610.26641-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://huggingface.co/BodenAI/EgoRayFormer"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Models-yellow.svg" alt="Hugging Face"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
 </p>
 
@@ -62,14 +63,24 @@ optional.
 
 ## Pretrained models
 
-The models of Table 1 (seed 42; the Results table reports the mean over three seeds) will be released soon. The files
-contain the EMA weights used for evaluation.
+The models of Table 1 (seed 42; the Results table reports the mean over three seeds) are on
+[Hugging Face](https://huggingface.co/BodenAI/EgoRayFormer). The files contain the EMA weights used for evaluation.
 
 | Model | Training data | Test set | File | Download |
 |---|---|---|---|---|
-| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo2 | UnrealEgo2 | `egorayformer_ue2.ckpt` | Coming soon |
-| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo-RW | UnrealEgo-RW | `egorayformer_rw.ckpt` | Coming soon |
-| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo2, then UnrealEgo-RW | UnrealEgo-RW | `egorayformer_ue2_to_rw.ckpt` | Coming soon |
+| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo2 | UnrealEgo2 | `egorayformer_ue2.ckpt` | [download](https://huggingface.co/BodenAI/EgoRayFormer/resolve/main/egorayformer_ue2.ckpt) |
+| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo-RW | UnrealEgo-RW | `egorayformer_rw.ckpt` | [download](https://huggingface.co/BodenAI/EgoRayFormer/resolve/main/egorayformer_rw.ckpt) |
+| EgoRayFormer (ViT-S+/16, 384²) | UnrealEgo2, then UnrealEgo-RW | UnrealEgo-RW | `egorayformer_ue2_to_rw.ckpt` | [download](https://huggingface.co/BodenAI/EgoRayFormer/resolve/main/egorayformer_ue2_to_rw.ckpt) |
+
+Download all three into `checkpoints/`:
+
+```bash
+mkdir -p checkpoints
+for m in egorayformer_ue2 egorayformer_rw egorayformer_ue2_to_rw; do
+  wget -P checkpoints https://huggingface.co/BodenAI/EgoRayFormer/resolve/main/$m.ckpt
+done
+sha256sum checkpoints/*.ckpt        # compare with the list below
+```
 
 SHA-256:
 
@@ -85,7 +96,7 @@ causal stream). Evaluation on the validation split:
 
 ```bash
 python run.py validate --config configs/egorayformer_rw.yaml --config configs/eval.yaml \
-  --model.model.encoder.pretrained false --data.root /data/unrealego/processed --ckpt_path egorayformer_rw.ckpt
+  --model.model.encoder.pretrained false --data.root /data/unrealego/processed --ckpt_path checkpoints/egorayformer_rw.ckpt
 ```
 
 Use `egorayformer_ue2` or `egorayformer_ue2_to_rw` for the other two models, and `EGORAYFORMER_ALLOW_TEST=1 python run.py

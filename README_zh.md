@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2610.26641"><img src="https://img.shields.io/badge/arXiv-2610.26641-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://huggingface.co/BodenAI/EgoRayFormer"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Models-yellow.svg" alt="Hugging Face"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
 </p>
 
@@ -60,13 +61,23 @@ pip install -e .
 
 ## 预训练模型
 
-表 1 的模型（seed 42；结果表报告的是三个 seed 的均值）即将发布，文件中保存的是评测所用的 EMA 权重。
+表 1 的模型（seed 42；结果表报告的是三个 seed 的均值）已发布在 [Hugging Face](https://huggingface.co/BodenAI/EgoRayFormer)，文件中保存的是评测所用的 EMA 权重。
 
 | 模型 | 训练数据 | 测试集 | 文件 | 下载 |
 |---|---|---|---|---|
-| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo2 | UnrealEgo2 | `egorayformer_ue2.ckpt` | 即将发布 |
-| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo-RW | UnrealEgo-RW | `egorayformer_rw.ckpt` | 即将发布 |
-| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo2 → UnrealEgo-RW | UnrealEgo-RW | `egorayformer_ue2_to_rw.ckpt` | 即将发布 |
+| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo2 | UnrealEgo2 | `egorayformer_ue2.ckpt` | [下载](https://huggingface.co/BodenAI/EgoRayFormer/resolve/main/egorayformer_ue2.ckpt) |
+| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo-RW | UnrealEgo-RW | `egorayformer_rw.ckpt` | [下载](https://huggingface.co/BodenAI/EgoRayFormer/resolve/main/egorayformer_rw.ckpt) |
+| EgoRayFormer（ViT-S+/16，384²） | UnrealEgo2 → UnrealEgo-RW | UnrealEgo-RW | `egorayformer_ue2_to_rw.ckpt` | [下载](https://huggingface.co/BodenAI/EgoRayFormer/resolve/main/egorayformer_ue2_to_rw.ckpt) |
+
+三个文件都下载到 `checkpoints/`：
+
+```bash
+mkdir -p checkpoints
+for m in egorayformer_ue2 egorayformer_rw egorayformer_ue2_to_rw; do
+  wget -P checkpoints https://huggingface.co/BodenAI/EgoRayFormer/resolve/main/$m.ckpt
+done
+sha256sum checkpoints/*.ckpt        # 与下方列表核对
+```
 
 SHA-256：
 
@@ -81,7 +92,7 @@ dfeb9c2867e14f4df97cda35f8fbffa37ba34f003e5a3b4133753a73ce12856e  egorayformer_u
 
 ```bash
 python run.py validate --config configs/egorayformer_rw.yaml --config configs/eval.yaml \
-  --model.model.encoder.pretrained false --data.root /data/unrealego/processed --ckpt_path egorayformer_rw.ckpt
+  --model.model.encoder.pretrained false --data.root /data/unrealego/processed --ckpt_path checkpoints/egorayformer_rw.ckpt
 ```
 
 另外两个模型把 `egorayformer_rw` 换成 `egorayformer_ue2` 或 `egorayformer_ue2_to_rw`；评测测试集时，用相同参数运行
